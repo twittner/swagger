@@ -19,3 +19,5 @@ p         # pp = p:pp
 
 {-# INLINE (#) #-}
 
+newtype Complete a = Complete { get :: a }
+

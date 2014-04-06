@@ -93,7 +93,7 @@ data Property = Property
 
 data DataType where
     Prim  :: (Show a, ToJSON a) => Primitive a -> DataType
-    Array :: Items -> Maybe Bool -> DataType
+    Array :: (Show a, ToJSON a) => Items a -> Maybe Bool -> DataType
     Ref   :: ModelId -> DataType
 
 deriving instance Show DataType
@@ -106,7 +106,10 @@ data Primitive a = Primitive
     , maxVal       :: Maybe a
     } deriving Show
 
-data Items = Item { itemType :: Either PrimType ModelId } deriving Show
+data Items a
+    = PrimItems (Primitive a)
+    | ModelItems ModelId
+    deriving Show
 
 data PrimType
     = PrimInt32
@@ -197,6 +200,9 @@ instance ToJSON Property where
         $ "description" .= propDescription a
         # fromType (propertyType a)
 
+instance ToJSON DataType where
+    toJSON = object . fromType
+
 fromType :: DataType -> [Pair]
 fromType (Prim    p) = fromPrim p
 fromType (Array i b) = fromArray i b
@@ -204,17 +210,16 @@ fromType (Ref     r) = ["type" .= r]
 
 fromPrim :: ToJSON a => Primitive a -> [Pair]
 fromPrim p =
-      "type"         .= fromPrimType (primType p)
-    # "defaultValue" .= defaultValue p
+      "defaultValue" .= defaultValue p
     # "enum"         .= enum p
     # "minimum"      .= minVal p
     # "maximum"      .= maxVal p
-    # []
+    # fromPrimType (primType p)
 
-fromArray :: Items -> Maybe Bool -> [Pair]
+fromArray :: ToJSON a => Items a -> Maybe Bool -> [Pair]
 fromArray i b =
       "type"        .= "array"
-    # "items"       .= either (object . fromPrimType) (object . (:[]) . ("ref" .=)) (itemType i)
+    # "items"       .= fromPairs (fromItems i)
     # "uniqueItems" .= b
     # []
 
@@ -229,3 +234,6 @@ fromPrimType PrimBool     = ["type" .= "boolean"]
 fromPrimType PrimDate     = ["type" .= "string", "format" .= "date" ]
 fromPrimType PrimDateTime = ["type" .= "string", "format" .= "date-time" ]
 
+fromItems :: ToJSON a => Items a -> [Pair]
+fromItems (ModelItems i) = [ "$ref" .= i ]
+fromItems (PrimItems  p) = fromPrim p
