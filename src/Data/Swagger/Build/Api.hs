@@ -11,11 +11,9 @@ module Data.Swagger.Build.Api where
 
 import Control.Monad.Trans.State.Strict
 import Data.Aeson (ToJSON)
-import Data.ByteString (ByteString)
 import Data.Int
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Data.Swagger.Build.Builder
 import Data.Swagger.Model.Api as Api
 import Data.Vinyl
 
@@ -37,66 +35,92 @@ required = modify (requiredF `rPut` Just True)
 -----------------------------------------------------------------------------
 -- Primitive types
 
-int32 :: Builder f (Primitive Int32) -> Builder ("type" ': f) (Primitive Int32)
-int32 (Builder p) = Builder $ p { primType = PrimInt32 }
+pempty :: PrimType -> Primitive a
+pempty t = Primitive t Nothing Nothing Nothing Nothing
 
-int64 :: Builder f (Primitive Int64) -> Builder ("type" ': f) (Primitive Int64)
-int64 (Builder p) = Builder $ p { primType = PrimInt64 }
+int32 :: (Primitive Int32 -> Primitive Int32) -> DataType
+int32 f = Prim . f $ pempty PrimInt32
 
-float :: Builder f (Primitive Float) -> Builder ("type" ': f) (Primitive Float)
-float (Builder p) = Builder $ p { primType = PrimFloat }
+int64 :: (Primitive Int64 -> Primitive Int64) -> DataType
+int64 f = Prim . f $ pempty PrimInt64
 
-double :: Builder f (Primitive Double) -> Builder ("type" ': f) (Primitive Double)
-double (Builder p) = Builder $ p { primType = PrimDouble }
+float :: (Primitive Float -> Primitive Float) -> DataType
+float f = Prim . f $ pempty PrimFloat
 
-string :: Builder f (Primitive String) -> Builder ("type" ': f) (Primitive String)
-string (Builder p) = Builder $ p { primType = PrimString }
+double :: (Primitive Double -> Primitive Double) -> DataType
+double f = Prim . f $ pempty PrimDouble
 
-bytes :: Builder f (Primitive ByteString) -> Builder ("type" ': f) (Primitive ByteString)
-bytes (Builder p) = Builder $ p { primType = PrimByte }
+string :: (Primitive String -> Primitive String) -> DataType
+string f = Prim . f $ pempty PrimString
 
-bool :: Builder f (Primitive Bool) -> Builder ("type" ': f) (Primitive Bool)
-bool (Builder p) = Builder $ p { primType = PrimBool }
+bytes :: (Primitive String -> Primitive String) -> DataType
+bytes f = Prim . f $ pempty PrimByte
 
-date :: Builder f (Primitive UTCTime) -> Builder ("type" ': f) (Primitive UTCTime)
-date (Builder p) = Builder $ p { primType = PrimDate }
+bool :: (Primitive Bool -> Primitive Bool) -> DataType
+bool f = Prim . f $ pempty PrimBool
 
-dateTime :: Builder f (Primitive UTCTime) -> Builder ("type" ': f) (Primitive UTCTime)
-dateTime (Builder p) = Builder $ p { primType = PrimDateTime }
+date :: (Primitive UTCTime -> Primitive UTCTime) -> DataType
+date f = Prim . f $ pempty PrimDate
 
-def :: a -> Builder f (Primitive a) -> Builder f (Primitive a)
-def a (Builder p) = Builder $ p { defaultValue = Just a }
+dateTime :: (Primitive UTCTime -> Primitive UTCTime) -> DataType
+dateTime f = Prim . f $ pempty PrimDateTime
 
-enum :: [a] -> Builder f (Primitive a) -> Builder f (Primitive a)
-enum a (Builder p) = Builder $ p { Api.enum = Just a }
+int32' :: DataType
+int32' = int32 id
 
-min :: a -> Builder f (Primitive a) -> Builder f (Primitive a)
-min a (Builder p) = Builder $ p { minVal = Just a }
+int64' :: DataType
+int64' = int64 id
 
-max :: a -> Builder f (Primitive a) -> Builder f (Primitive a)
-max a (Builder p) = Builder $ p { maxVal = Just a }
+float' :: DataType
+float' = float id
+
+double' :: DataType
+double' = double id
+
+string' :: DataType
+string' = string id
+
+bytes' :: DataType
+bytes' = bytes id
+
+bool' :: DataType
+bool' = bool id
+
+date' :: DataType
+date' = date id
+
+dateTime' :: DataType
+dateTime' = dateTime id
+
+def :: a -> Primitive a -> Primitive a
+def a t = t { defaultValue = Just a }
+
+enum :: [a] -> Primitive a -> Primitive a
+enum a t = t { Api.enum = Just a }
+
+min :: a -> Primitive a -> Primitive a
+min a t = t { minVal = Just a }
+
+max :: a -> Primitive a -> Primitive a
+max a t = t { maxVal = Just a }
 
 -----------------------------------------------------------------------------
 -- Data types
 
-primitive :: (Show a, ToJSON a)
-          => (Builder '[] (Primitive a) -> Builder '["type"] (Primitive a))
-          -> DataType
-primitive f = Prim . fromBuilder . f $ p
-  where
-    p = Builder $ Primitive undefined Nothing Nothing Nothing Nothing
+prim :: (ToJSON a, Show a) => Primitive a -> DataType
+prim = Prim
 
 model :: Model -> DataType
 model = Ref . modelId
 
-array :: Maybe Bool -> DataType -> DataType
-array u (Prim  t) = Array (PrimItems t) u
-array u (Ref   t) = Array (ModelItems t :: Items ()) u
-array u (Array t _) = Array t u
+array :: DataType -> DataType
+array (Prim  t) = Array (PrimItems t) Nothing
+array (Ref   t) = Array (ModelItems t :: Items ()) Nothing
+array t@(Array _ _) = t
 
-regular, unique :: Maybe Bool
-regular = Nothing
-unique  = Just True
+unique :: DataType -> DataType
+unique (Array t _) = Array t (Just True)
+unique t           = t
 
 -----------------------------------------------------------------------------
 -- Operation

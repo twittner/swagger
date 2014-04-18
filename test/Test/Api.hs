@@ -29,12 +29,12 @@ operationFoo = operation "GET" "foo" $ do
     summary "give me some foo"
     notes   "but only the good one"
     returns (model foo)
-    parameter Header "type" (primitive $ string . enum ["bar", "baz"]) $ do
+    parameter Header "type" (string $ enum ["bar", "baz"]) $ do
         description "specifies the type of foo"
         required
-    parameter Query "format" (primitive $ string . enum ["plain", "html"]) $
+    parameter Query "format" (string $ enum ["plain", "html"]) $
         description "output format"
-    parameter Query "size" (primitive $ int32 . min 1 . max 100 . def 10) $
+    parameter Query "size" (int32 $ min 1 . max 100 . def 10) $
         description "amount of foo"
     produces "application/json"
     produces "plain/html"
@@ -44,9 +44,9 @@ operationFoo = operation "GET" "foo" $ do
 foo :: Model
 foo = defineModel "Foo" $ do
     description "A bottle of foo"
-    property "rabbit" (array unique $ primitive int32) $
+    property "rabbit" (array int32') $
         description "A foo's rabbit"
-    property "white" (primitive $ bool . def False) $ do
+    property "white" (bool $ def False) $ do
         description "a white rabbit?"
         required
     property "bar" (model bar) done

@@ -5,14 +5,23 @@
 module Data.Swagger.Build
     ( -- * primitive types
       B.int32
+    , B.int32'
     , B.int64
+    , B.int64'
     , B.float
+    , B.float'
     , B.bool
+    , B.bool'
     , B.double
+    , B.double'
     , B.string
+    , B.string'
     , B.bytes
+    , B.bytes'
     , B.date
+    , B.date'
     , B.dateTime
+    , B.dateTime'
 
       -- ** modifiers
     , B.def
@@ -21,10 +30,9 @@ module Data.Swagger.Build
     , B.max
 
       -- * data-types
-    , B.primitive
+    , B.prim
     , B.model
     , B.array
-    , B.regular
     , B.unique
 
       -- * operation
@@ -61,3 +69,4 @@ module Data.Swagger.Build
 
 import qualified Data.Swagger.Build.Api as B
 import qualified Data.Swagger.Model.Api as M
+
