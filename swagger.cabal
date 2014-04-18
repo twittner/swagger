@@ -42,7 +42,6 @@ library
         , text         >= 0.11 && < 1.2
         , time         == 1.4.*
         , transformers == 0.3.*
-        , vinyl        == 0.3.*
 
 test-suite tests
     type:             exitcode-stdio-1.0

@@ -30,7 +30,6 @@ module Data.Swagger.Build
     , B.max
 
       -- * data-types
-    , B.prim
     , B.model
     , B.array
     , B.unique
@@ -64,7 +63,6 @@ module Data.Swagger.Build
     , B.description
     , B.required
     , B.done
-    , B.with
     ) where
 
 import qualified Data.Swagger.Build.Api as B
