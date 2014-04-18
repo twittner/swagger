@@ -26,7 +26,7 @@ library
 
     exposed-modules:
         Data.Swagger
-        Data.Swagger.Build
+        Data.Swagger.Build.Api
         Data.Swagger.Model.Api
         Data.Swagger.Model.Authorisation
         Data.Swagger.Model.Resource
@@ -35,8 +35,9 @@ library
         Data.Swagger.Model.Util
 
     build-depends:
-          aeson      >= 0.6  && < 0.8
-        , base       == 4.*
-        , bytestring == 0.10.*
-        , text       >= 0.11 && < 1.2
-        , time       == 1.4.*
+          aeson        >= 0.6  && < 0.8
+        , base         == 4.*
+        , bytestring   == 0.10.*
+        , text         >= 0.11 && < 1.2
+        , time         == 1.4.*
+        , transformers == 0.3.*

@@ -48,7 +48,7 @@ data Operation = Operation
     , responses      :: Maybe [Response]
     , produces       :: Maybe [Text]
     , consumes       :: Maybe [Text]
-    , deprecated     :: Maybe Text
+    , deprecated     :: Maybe Bool
     } deriving Show
 
 data Parameter = Parameter
@@ -61,11 +61,11 @@ data Parameter = Parameter
     } deriving Show
 
 data ParamType
-    = PathParam
-    | QueryParam
-    | BodyParam
-    | HeaderParam
-    | FormParam
+    = Path
+    | Query
+    | Body
+    | Header
+    | Form
     deriving (Eq, Show)
 
 data Response = Response
@@ -172,11 +172,11 @@ instance ToJSON Parameter where
         # either (const $ ["type" .= "File"]) fromType (inputType a)
 
 instance ToJSON ParamType where
-    toJSON PathParam   = "path"
-    toJSON QueryParam  = "query"
-    toJSON BodyParam   = "body"
-    toJSON HeaderParam = "header"
-    toJSON FormParam   = "form"
+    toJSON Path   = "path"
+    toJSON Query  = "query"
+    toJSON Body   = "body"
+    toJSON Header = "header"
+    toJSON Form   = "form"
 
 instance ToJSON Response where
     toJSON a = object
