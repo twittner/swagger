@@ -25,13 +25,12 @@ renderFoo = B.putStrLn $ encode operationFoo where
     summary "give me some foo"
     notes   "but only the good one"
     returns (model foo)
-    parameter Header "type" (primitive $ string `with` enum ["bar", "baz"]) $ do
+    parameter Header "type" (primitive $ string . enum ["bar", "baz"]) $ do
         description "specifies the type of foo"
         required
-    parameter Query "format" (primitive $ string `with` enum ["plain", "html"]) $
+    parameter Query "format" (primitive $ string . enum ["plain", "html"]) $
         description "output format"
-    parameter Query "size"
-        (primitive $ int32 `with` do min 1 >> max 100 >> def 10) $
+    parameter Query "size" (primitive $ int32 . min 1 . max 100 . def 10) $
         description "amount of foo"
     produces "application/json"
     produces "plain/html"

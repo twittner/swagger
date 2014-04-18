@@ -33,6 +33,7 @@ library
         Data.Swagger.Model.Resource
 
     other-modules:
+        Data.Swagger.Build.Builder
         Data.Swagger.Model.Util
 
     build-depends:
