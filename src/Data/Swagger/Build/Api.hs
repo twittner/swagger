@@ -79,27 +79,24 @@ max a (Builder p) = Builder $ p { maxVal = Just a }
 -----------------------------------------------------------------------------
 -- Data types
 
-primitive :: (Show a, ToJSON a) => (Builder '[] (Primitive a) -> Builder '["type"] (Primitive a)) -> DataType
+primitive :: (Show a, ToJSON a)
+          => (Builder '[] (Primitive a) -> Builder '["type"] (Primitive a))
+          -> DataType
 primitive f = Prim . fromBuilder . f $ p
-  where
-    p = Builder $ Primitive undefined Nothing Nothing Nothing Nothing
-
-primitives :: (Show a, ToJSON a) => (Builder '[] (Primitive a) -> Builder '["type"] (Primitive a)) -> Items a
-primitives f = PrimItems . fromBuilder . f $ p
   where
     p = Builder $ Primitive undefined Nothing Nothing Nothing Nothing
 
 model :: Model -> DataType
 model = Ref . modelId
 
-models :: Model -> Items ()
-models = ModelItems . modelId
+array :: Maybe Bool -> DataType -> DataType
+array u (Prim  t) = Array (PrimItems t) u
+array u (Ref   t) = Array (ModelItems t :: Items ()) u
+array u (Array t _) = Array t u
 
-array :: (Show a, ToJSON a) => Items a -> DataType
-array = flip Array Nothing
-
-set :: (Show a, ToJSON a) => Items a -> DataType
-set = flip Array (Just True)
+regular, unique :: Maybe Bool
+regular = Nothing
+unique  = Just True
 
 -----------------------------------------------------------------------------
 -- Operation

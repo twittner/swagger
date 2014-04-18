@@ -8,7 +8,7 @@ module Test.Api where
 
 import Data.Aeson
 import Data.Swagger.Build
-import Data.Swagger.Model.Api (Model)
+import Data.Swagger.Model.Api (Model, Operation)
 import Prelude hiding (min, max)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -17,11 +17,15 @@ import qualified Data.ByteString.Lazy.Char8 as B
 
 tests :: TestTree
 tests = testGroup "example declarations"
-    [ testCase "operation foo" renderFoo ]
+    [ testCase "operation foo" (render operationFoo)
+    , testCase "model foo" (render foo)
+    ]
+  where
+    render :: ToJSON a => a -> IO ()
+    render = B.putStrLn . encode
 
-renderFoo :: IO ()
-renderFoo = B.putStrLn $ encode operationFoo where
-  operationFoo = operation "GET" "foo" $ do
+operationFoo :: Operation
+operationFoo = operation "GET" "foo" $ do
     summary "give me some foo"
     notes   "but only the good one"
     returns (model foo)
@@ -38,5 +42,16 @@ renderFoo = B.putStrLn $ encode operationFoo where
     response 400 "Bad Request" done
 
 foo :: Model
-foo = defineModel "Foo" done
+foo = defineModel "Foo" $ do
+    description "A bottle of foo"
+    property "rabbit" (array unique $ primitive int32) $
+        description "A foo's rabbit"
+    property "white" (primitive $ bool . def False) $ do
+        description "a white rabbit?"
+        required
+    property "bar" (model bar) done
+
+bar :: Model
+bar = defineModel "Bar" $
+    property "foo" (model foo) done
 

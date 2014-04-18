@@ -7,6 +7,7 @@ module Data.Swagger.Build
       B.int32
     , B.int64
     , B.float
+    , B.bool
     , B.double
     , B.string
     , B.bytes
@@ -23,9 +24,8 @@ module Data.Swagger.Build
     , B.primitive
     , B.model
     , B.array
-    , B.set
-    , B.primitives
-    , B.models
+    , B.regular
+    , B.unique
 
       -- * operation
     , B.operation

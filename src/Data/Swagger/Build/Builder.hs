@@ -21,6 +21,6 @@ newtype Builder (s :: [Symbol]) a = Builder { fromBuilder :: a }
 type Elem a b = IsElem a b ~ True
 
 type family IsElem a b where
-    IsElem a '[] = False
+    IsElem a      '[] = False
     IsElem a (h ': t) = a == h || IsElem a t
 
