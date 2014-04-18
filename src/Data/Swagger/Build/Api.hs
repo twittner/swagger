@@ -2,11 +2,13 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators     #-}
 
 module Data.Swagger.Build.Api where
 
-import Control.Applicative
 import Control.Monad.Trans.State.Strict
 import Data.Aeson (ToJSON)
 import Data.ByteString (ByteString)
@@ -14,6 +16,22 @@ import Data.Int
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import Data.Swagger.Model.Api as Api
+import Data.Vinyl
+
+-----------------------------------------------------------------------------
+-- Fields occuring in multiple locations
+
+descriptionF :: "description" ::: Maybe Text
+descriptionF = Field
+
+requiredF :: "required" ::: Maybe Bool
+requiredF = Field
+
+description :: IElem ("description" ::: Maybe Text) f => Text -> State (PlainRec f) ()
+description d = modify (descriptionF `rPut` Just d)
+
+required :: IElem ("required" ::: Maybe Bool) f => State (PlainRec f) ()
+required = modify (requiredF `rPut` Just True)
 
 -----------------------------------------------------------------------------
 -- Primitive types
@@ -45,8 +63,8 @@ bool = prim PrimBool
 date :: Primitive UTCTime
 date = prim PrimDate
 
-date_time :: Primitive UTCTime
-date_time = prim PrimDateTime
+dateTime :: Primitive UTCTime
+dateTime = prim PrimDateTime
 
 def :: a -> State (Primitive a) ()
 def a = modify $ \p -> p { defaultValue = Just a }
@@ -69,11 +87,11 @@ primitive = Prim
 primitives :: (Show a, ToJSON a) => Primitive a -> Items a
 primitives = PrimItems
 
-model :: ModelId -> DataType
-model = Ref
+model :: Model -> DataType
+model = Ref . modelId
 
-models :: ModelId -> Items ()
-models = ModelItems
+models :: Model -> Items ()
+models = ModelItems . modelId
 
 array :: (Show a, ToJSON a) => Items a -> DataType
 array = flip Array Nothing
@@ -92,17 +110,27 @@ operation m n s = start `with` s
 returns :: DataType -> State Operation ()
 returns t = modify $ \op -> op { returnType = Right t }
 
-parameter :: ParamType -> Text -> DataType -> State Parameter () -> State Operation ()
-parameter p n t s = modify $ \op -> op { parameters = start `with` s : parameters op }
+parameter :: ParamType -> Text -> DataType -> State (PlainRec P) () -> State Operation ()
+parameter p n t s = modify $ \op ->
+    op { parameters = value (start `with` s) : parameters op }
   where
-    start = Parameter p (Right t) n Nothing (Just True) Nothing
+    start   = mkP $ Parameter p (Right t) n Nothing Nothing Nothing
+    value r = let ds = descriptionF `rGet` r
+                  rq = requiredF `rGet` r
+                  p' = paramF `rGet` r
+              in p' { Api.description = ds, Api.required = rq }
 
-file :: Text -> State Parameter () -> State Operation ()
+file :: Text -> State (PlainRec P) () -> State Operation ()
 file n s = modify $ \op ->
     op { Api.consumes = Just ["multipart/form-data"]
-       , parameters   = start `with` s : parameters op }
+       , parameters   = value (start `with` s) : parameters op
+       }
   where
-    start = Parameter Form (Left File) n Nothing (Just True) Nothing
+    start   = mkP $ Parameter Form (Left File) n Nothing Nothing Nothing
+    value r = let ds = descriptionF `rGet` r
+                  rq = requiredF `rGet` r
+                  p' = paramF `rGet` r
+              in p' { Api.description = ds, Api.required = rq }
 
 summary :: Text -> State Operation ()
 summary t = modify $ \op -> op { Api.summary = Just t }
@@ -131,54 +159,63 @@ deprecated = modify $ \op -> op { Api.deprecated = Just True }
 -----------------------------------------------------------------------------
 -- Response
 
-response_model :: ModelId -> State Response ()
-response_model m = modify $ \r -> r { responseModel = Just m }
+responseModel :: Model -> State Response ()
+responseModel m = modify $ \r -> r { Api.responseModel = Just (modelId m) }
 
 -----------------------------------------------------------------------------
 -- Parameter
 
-optional :: State Parameter ()
-optional = modify $ \p -> p { Api.required = Nothing }
+type P = [ "description" ::: Maybe Text
+         , "required"    ::: Maybe Bool
+         , "parameter"   ::: Parameter
+         ]
 
-description :: Text -> State Parameter ()
-description d = modify $ \p -> p { Api.description = Just d }
+paramF :: "parameter" ::: Parameter
+paramF = Field
 
-multiple :: State Parameter ()
-multiple = modify $ \p -> p { allowMultiple = Just True }
+mkP :: Parameter -> PlainRec P
+mkP p = descriptionF =: Nothing <+> requiredF =: Nothing <+> paramF =: p
+
+multiple :: State (PlainRec P) ()
+multiple = modify (rMod paramF (\p -> p { allowMultiple = Just True }))
 
 -----------------------------------------------------------------------------
 -- Model
 
-defineModel :: ModelId -> State Model () -> Model
-defineModel m s = start `with` s
-  where
-    start = Model m [] Nothing Nothing Nothing Nothing
+type M = [ "description" ::: Maybe Text, "model" ::: Model ]
 
-property :: PropertyName -> DataType -> State Property () -> State Model ()
-property p t s = modify $ \m ->
-    m { properties = (p, start `with` s) : properties m
-      , requiredProps = maybe (Just [p]) (Just . (p:)) (requiredProps m)
+mkM :: Model -> PlainRec M
+mkM m = descriptionF =: Nothing <+> modelF =: m
+
+modelF :: "model" ::: Model
+modelF = Field
+
+defineModel :: ModelId -> State (PlainRec M) () -> Model
+defineModel m s = value (start `with` s)
+  where
+    start   = mkM $ Model m [] Nothing Nothing Nothing Nothing
+    value r = (modelF `rGet` r) { modelDescription = descriptionF `rGet` r}
+
+type PR = [ "description" ::: Maybe Text , "required" ::: Maybe Bool ]
+
+mkPR :: PlainRec PR
+mkPR = descriptionF =: Nothing <+> requiredF =: Nothing
+
+property :: PropertyName -> DataType -> State (PlainRec PR) () -> State (PlainRec M) ()
+property n t s = modify $ rMod modelF $ \m -> do
+    let r = mkPR `with` s
+        p = Property t (descriptionF `rGet` r)
+    m { properties    = (n, p) : properties m
+      , requiredProps = if Just True /= requiredF `rGet` r
+                            then requiredProps m
+                            else maybe (Just [n]) (Just . (n:)) (requiredProps m)
       }
-  where
-    start = Property t Nothing
 
-optional_property :: State Model ()
-optional_property = modify $ \m -> m { requiredProps = tail <$> requiredProps m }
+subtypes :: [ModelId] -> State (PlainRec M) ()
+subtypes tt = modify (rMod modelF $ \m -> m { subTypes = Just tt })
 
-model_description :: Text -> State Model ()
-model_description t = modify $ \m -> m { modelDescription = Just t }
-
-subtypes :: [ModelId] -> State Model ()
-subtypes tt = modify $ \m -> m { subTypes = Just tt }
-
-discriminator :: PropertyName -> State Model ()
-discriminator n = modify $ \m -> m { Api.discriminator = Just n }
-
------------------------------------------------------------------------------
--- Property
-
-property_description :: Text -> State Property ()
-property_description t = modify $ \p -> p { propDescription = Just t }
+discriminator :: PropertyName -> State (PlainRec M) ()
+discriminator n = modify (rMod modelF $ \m -> m { Api.discriminator = Just n })
 
 -----------------------------------------------------------------------------
 -- Helpers

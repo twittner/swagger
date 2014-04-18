@@ -16,8 +16,5 @@ infixr 5 #
 (#) :: Pair -> [Pair] -> [Pair]
 (_, Null) # pp = pp
 p         # pp = p:pp
-
 {-# INLINE (#) #-}
-
-newtype Complete a = Complete { get :: a }
 
