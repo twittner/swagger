@@ -160,7 +160,7 @@ instance ToJSON Operation where
         # "produces"         .= produces a
         # "consumes"         .= consumes a
         # "deprecated"       .= deprecated a
-        # either (const $ ["type" .= "void"]) fromType (returnType a)
+        # either (const ["type" .= "void"]) fromType (returnType a)
 
 instance ToJSON Parameter where
     toJSON a = object
@@ -169,7 +169,7 @@ instance ToJSON Parameter where
         # "description"   .= description a
         # "required"      .= required a
         # "allowMultiple" .= allowMultiple a
-        # either (const $ ["type" .= "File"]) fromType (inputType a)
+        # either (const ["type" .= "File"]) fromType (inputType a)
 
 instance ToJSON ParamType where
     toJSON Path   = "path"

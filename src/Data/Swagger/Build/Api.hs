@@ -3,8 +3,9 @@
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 {-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds         #-}
+{-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Data.Swagger.Build.Api where
@@ -13,6 +14,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Int
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import Data.Swagger.Build.Util
 import Data.Swagger.Model.Api as Api
 
 -----------------------------------------------------------------------------
@@ -105,23 +107,25 @@ unique t           = t
 -----------------------------------------------------------------------------
 -- Fields occuring in multiple locations
 
-data Common a = Common
+data Common f a = Common
     { descr :: Maybe Text
     , reqrd :: Maybe Bool
     , other :: a
     }
 
-common :: a -> Common a
+common :: a -> Common f a
 common = Common Nothing Nothing
 
-description :: Text -> State (Common a) ()
+description :: Elem "description" f => Text -> State (Common f a) ()
 description d = modify $ \c -> c { descr = Just d }
 
-required :: State (Common a) ()
+required :: Elem "required" f => State (Common f a) ()
 required = modify $ \c -> c { reqrd = Just True }
 
 -----------------------------------------------------------------------------
 -- Operation
+
+type ParameterSt = Common '["description", "required"] Parameter
 
 operation :: Text -> Text -> State Operation () -> Operation
 operation m n s = execState s start
@@ -131,14 +135,14 @@ operation m n s = execState s start
 returns :: DataType -> State Operation ()
 returns t = modify $ \op -> op { returnType = Right t }
 
-parameter :: ParamType -> Text -> DataType -> State (Common Parameter) () -> State Operation ()
+parameter :: ParamType -> Text -> DataType -> State ParameterSt () -> State Operation ()
 parameter p n t s = modify $ \op ->
     op { parameters = value (execState s start) : parameters op }
   where
     start   = common $ Parameter p (Right t) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
-file :: Text -> State (Common Parameter) () -> State Operation ()
+file :: Text -> State ParameterSt () -> State Operation ()
 file n s = modify $ \op ->
     op { Api.consumes = Just ["multipart/form-data"]
        , parameters   = value (execState s start) : parameters op
@@ -180,19 +184,22 @@ responseModel m = modify $ \r -> r { Api.responseModel = Just (modelId m) }
 -----------------------------------------------------------------------------
 -- Parameter
 
-multiple :: State (Common Parameter) ()
+multiple :: State ParameterSt ()
 multiple = modify $ \c -> c { other = (other c) { allowMultiple = Just True } }
 
 -----------------------------------------------------------------------------
 -- Model
 
-defineModel :: ModelId -> State (Common Model) () -> Model
+type ModelSt    = Common '["description"] Model
+type PropertySt = Common '["description", "required"] Property
+
+defineModel :: ModelId -> State ModelSt () -> Model
 defineModel m s = value (execState s start)
   where
     start   = common $ Model m [] Nothing Nothing Nothing Nothing
     value c = (other c) { modelDescription = descr c }
 
-property :: PropertyName -> DataType -> State (Common Property) () -> State (Common Model) ()
+property :: PropertyName -> DataType -> State PropertySt () -> State ModelSt ()
 property n t s = modify $ \c -> do
     let r = execState s $ common (Property t Nothing)
         p = other r
@@ -201,10 +208,10 @@ property n t s = modify $ \c -> do
         y = if Just True /= reqrd r then requiredProps m else x
     c { other = m { properties = (n, p) : properties m , requiredProps = y } }
 
-subtypes :: [ModelId] -> State (Common Model) ()
+subtypes :: [ModelId] -> State ModelSt ()
 subtypes tt = modify $ \c -> c { other = (other c) { subTypes = Just tt } }
 
-discriminator :: PropertyName -> State (Common Model) ()
+discriminator :: PropertyName -> State ModelSt ()
 discriminator n = modify $ \c -> c { other = (other c) { Api.discriminator = Just n } }
 
 -----------------------------------------------------------------------------
