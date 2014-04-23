@@ -3,7 +3,8 @@
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 module Data.Swagger.Build
-    ( -- * primitive types
+    ( -- * data types
+      -- ** primitives
       B.int32
     , B.int32'
     , B.int64
@@ -29,10 +30,25 @@ module Data.Swagger.Build
     , B.min
     , B.max
 
-      -- * data-types
-    , B.model
+      -- ** constructors
+    , B.ref
     , B.array
     , B.unique
+
+      -- * builders
+    , B.ApiDeclBuilder
+    , B.ApiBuilder
+    , B.OperationBuilder
+    , B.ParameterBuilder
+    , B.ModelBuilder
+    , B.PropertyBuilder
+
+      -- * API declaration
+    , B.declare
+    , B.apiVersion
+    , B.resourcePath
+    , B.api
+    , B.model
 
       -- * operation
     , B.operation
@@ -43,8 +59,6 @@ module Data.Swagger.Build
     , B.notes
     , B.response
     , B.produces
-    , B.consumes
-    , B.deprecated
 
       -- * response
     , B.responseModel
@@ -61,10 +75,11 @@ module Data.Swagger.Build
 
       -- * general
     , B.description
-    , B.required
-    , B.done
+    , B.optional
+    , B.consumes
+    , B.deprecated
+    , B.end
     ) where
 
 import qualified Data.Swagger.Build.Api as B
 import qualified Data.Swagger.Model.Api as M
-

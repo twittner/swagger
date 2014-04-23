@@ -160,7 +160,7 @@ instance ToJSON Operation where
         # "produces"         .= produces a
         # "consumes"         .= consumes a
         # "deprecated"       .= deprecated a
-        # either (const ["type" .= "void"]) fromType (returnType a)
+        # either (const ["type" .= "void"]) (fromType False) (returnType a)
 
 instance ToJSON Parameter where
     toJSON a = object
@@ -169,7 +169,7 @@ instance ToJSON Parameter where
         # "description"   .= description a
         # "required"      .= required a
         # "allowMultiple" .= allowMultiple a
-        # either (const ["type" .= "File"]) fromType (inputType a)
+        # either (const ["type" .= "File"]) (fromType False) (inputType a)
 
 instance ToJSON ParamType where
     toJSON Path   = "path"
@@ -198,15 +198,13 @@ instance ToJSON Model where
 instance ToJSON Property where
     toJSON a = object
         $ "description" .= propDescription a
-        # fromType (propertyType a)
+        # fromType True (propertyType a)
 
-instance ToJSON DataType where
-    toJSON = object . fromType
-
-fromType :: DataType -> [Pair]
-fromType (Prim    p) = fromPrim p
-fromType (Array i b) = fromArray i b
-fromType (Ref     r) = ["type" .= r]
+fromType :: Bool -> DataType -> [Pair]
+fromType _     (Prim    p) = fromPrim p
+fromType _     (Array i b) = fromArray i b
+fromType False (Ref     r) = ["type" .= r]
+fromType True  (Ref     r) = ["$ref" .= r]
 
 fromPrim :: ToJSON a => Primitive a -> [Pair]
 fromPrim p =

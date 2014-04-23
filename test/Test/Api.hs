@@ -8,7 +8,7 @@ module Test.Api where
 
 import Data.Aeson
 import Data.Swagger.Build
-import Data.Swagger.Model.Api (Model, Operation)
+import Data.Swagger.Model.Api (Model, ApiDecl)
 import Prelude hiding (min, max)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -17,29 +17,41 @@ import qualified Data.ByteString.Lazy.Char8 as B
 
 tests :: TestTree
 tests = testGroup "example declarations"
-    [ testCase "operation foo" (render operationFoo)
+    [ testCase "api" (render apiDecl)
     , testCase "model foo" (render foo)
     ]
   where
     render :: ToJSON a => a -> IO ()
     render = B.putStrLn . encode
 
-operationFoo :: Operation
-operationFoo = operation "GET" "foo" $ do
-    summary "give me some foo"
-    notes   "but only the good one"
-    returns (model foo)
-    parameter Header "type" (string $ enum ["bar", "baz"]) $ do
-        description "specifies the type of foo"
-        required
-    parameter Query "format" (string $ enum ["plain", "html"]) $
-        description "output format"
-    parameter Query "size" (int32 $ min 1 . max 100 . def 10) $
-        description "amount of foo"
+apiDecl :: ApiDecl
+apiDecl = declare "http://petstore.swagger.wordnik.com/api" "1.2" $ do
+    apiVersion "1.0.0"
+    resourcePath "/store"
+    model foo
+    model bar
     produces "application/json"
-    produces "plain/html"
-    response 200 "OK" (responseModel foo)
-    response 400 "Bad Request" done
+    produces "text/html"
+    produces "text/plain"
+    api "/store/order/{orderId}" $ do
+        operation "GET" "foo" $ do
+            summary "give me some foo"
+            notes   "but only the good one"
+            returns (ref foo)
+            parameter Header "type" (string $ enum ["bar", "baz"]) $ do
+                description "specifies the type of foo"
+                optional
+            parameter Query "format" (string $ enum ["plain", "html"]) $
+                description "output format"
+            parameter Query "size" (int32 $ min 1 . max 100 . def 10) $
+                description "amount of foo"
+            produces "application/json"
+            produces "text/html"
+            response 200 "OK" (responseModel foo)
+            response 400 "Bad Request" end
+        operation "POST" "foo" $ do
+            summary "something else"
+            deprecated
 
 foo :: Model
 foo = defineModel "Foo" $ do
@@ -48,10 +60,10 @@ foo = defineModel "Foo" $ do
         description "A foo's rabbit"
     property "white" (bool $ def False) $ do
         description "a white rabbit?"
-        required
-    property "bar" (model bar) done
+        optional
+    property "bar" (ref bar) end
 
 bar :: Model
 bar = defineModel "Bar" $
-    property "foo" (model foo) done
+    property "foo" (ref foo) end
 

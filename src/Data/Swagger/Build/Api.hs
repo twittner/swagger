@@ -92,8 +92,8 @@ max a t = t { maxVal = Just a }
 -----------------------------------------------------------------------------
 -- Data types
 
-model :: Model -> DataType
-model = Ref . modelId
+ref :: Model -> DataType
+ref = Ref . modelId
 
 array :: DataType -> DataType
 array (Prim  t) = Array (PrimItems t) Nothing
@@ -110,70 +110,120 @@ unique t           = t
 data Common f a = Common
     { descr :: Maybe Text
     , reqrd :: Maybe Bool
+    , prod  :: Maybe [Text]
+    , cons  :: Maybe [Text]
     , other :: a
     }
 
 common :: a -> Common f a
-common = Common Nothing Nothing
+common = Common Nothing (Just True) Nothing Nothing
 
 description :: Elem "description" f => Text -> State (Common f a) ()
 description d = modify $ \c -> c { descr = Just d }
 
-required :: Elem "required" f => State (Common f a) ()
-required = modify $ \c -> c { reqrd = Just True }
+optional :: Elem "required" f => State (Common f a) ()
+optional = modify $ \c -> c { reqrd = Nothing }
+
+produces :: Elem "produces" f => Text -> State (Common f a) ()
+produces t = modify $ \c -> c { prod = maybe (Just [t]) (Just . (t:)) (prod c) }
+
+consumes :: Elem "consumes" f => Text -> State (Common f a) ()
+consumes t = modify $ \c -> c { cons = maybe (Just [t]) (Just . (t:)) (cons c) }
+
+-----------------------------------------------------------------------------
+-- Api Decl
+
+type ApiDeclSt = Common '["produces", "consumes"] ApiDecl
+type ApiDeclBuilder = State ApiDeclSt ()
+
+declare :: Text -> Text -> ApiDeclBuilder -> ApiDecl
+declare b v s = value $ execState s start
+  where
+    start   = common $ ApiDecl v b [] Nothing Nothing Nothing Nothing Nothing Nothing
+    value c = (other c) { apiProduces = prod c, apiConsumes = cons c }
+
+apiVersion :: Text -> ApiDeclBuilder
+apiVersion v = modify $ \c -> c { other = (other c) { Api.apiVersion = Just v } }
+
+resourcePath :: Text -> ApiDeclBuilder
+resourcePath p = modify $ \c -> c { other = (other c) { Api.resourcePath = Just p } }
+
+model :: Model -> ApiDeclBuilder
+model m = modify $ \c -> do
+    let x = other c
+        i = modelId m
+    c { other = x { models = maybe (Just [(i, m)]) (Just . ((i, m) :)) (models x) } }
+
+-----------------------------------------------------------------------------
+-- API
+
+type ApiSt = Common '["description"] API
+type ApiBuilder = State ApiSt ()
+
+api :: Text -> ApiBuilder -> ApiDeclBuilder
+api p s = modify $ \c -> do
+    let d = other c
+    c { other = d { apis = value (execState s start) : apis d } }
+  where
+    start   = common $ API p [] Nothing
+    value c = (other c) { apiDescription = descr c }
+
+type OperationSt = Common '["produces", "consumes"] Operation
+type OperationBuilder = State OperationSt ()
+
+operation :: Text -> Text -> OperationBuilder -> ApiBuilder
+operation m n s = modify $ \c -> do
+    let o = value (execState s start)
+        a = other c
+    c { other = a { operations = o : operations a } }
+  where
+    start   = common $ Operation m n (Left ()) [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+    value c = (other c) { Api.produces = prod c, Api.consumes = cons c }
 
 -----------------------------------------------------------------------------
 -- Operation
 
 type ParameterSt = Common '["description", "required"] Parameter
+type ParameterBuilder = State ParameterSt ()
 
-operation :: Text -> Text -> State Operation () -> Operation
-operation m n s = execState s start
-  where
-    start = Operation m n (Left ()) [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+returns :: DataType -> OperationBuilder
+returns t = modify $ \c -> c { other = (other c) { returnType = Right t } }
 
-returns :: DataType -> State Operation ()
-returns t = modify $ \op -> op { returnType = Right t }
-
-parameter :: ParamType -> Text -> DataType -> State ParameterSt () -> State Operation ()
-parameter p n t s = modify $ \op ->
-    op { parameters = value (execState s start) : parameters op }
+parameter :: ParamType -> Text -> DataType -> ParameterBuilder -> OperationBuilder
+parameter p n t s = modify $ \c -> do
+    let op = other c
+    c { other = op { parameters = value (execState s start) : parameters op } }
   where
     start   = common $ Parameter p (Right t) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
-file :: Text -> State ParameterSt () -> State Operation ()
-file n s = modify $ \op ->
-    op { Api.consumes = Just ["multipart/form-data"]
-       , parameters   = value (execState s start) : parameters op
-       }
+file :: Text -> ParameterBuilder -> OperationBuilder
+file n s = modify $ \c -> do
+    let op = other c
+    c { other = op { Api.consumes = Just ["multipart/form-data"]
+                   , parameters   = value (execState s start) : parameters op
+                   }
+      }
   where
     start   = common $ Parameter Form (Left File) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
-summary :: Text -> State Operation ()
-summary t = modify $ \op -> op { Api.summary = Just t }
+summary :: Text -> OperationBuilder
+summary t = modify $ \c -> c { other = (other c) { Api.summary = Just t } }
 
-notes :: Text -> State Operation ()
-notes t = modify $ \op -> op { Api.notes = Just t }
+notes :: Text -> OperationBuilder
+notes t = modify $ \c -> c { other = (other c) { Api.notes = Just t } }
 
-response :: Int -> Text -> State Response () -> State Operation ()
-response c m s = modify $ \op -> do
+response :: Int -> Text -> State Response () -> OperationBuilder
+response c m s = modify $ \x -> do
     let r = execState s start
-    op { responses = maybe (Just [r]) (Just . (r:)) (responses op) }
+        o = other x
+    x { other = o { responses = maybe (Just [r]) (Just . (r:)) (responses o) } }
   where
     start = Response c m Nothing
 
-produces :: Text -> State Operation ()
-produces t = modify $ \op ->
-    op { Api.produces = maybe (Just [t]) (Just . (t:)) (Api.produces op) }
-
-consumes :: Text -> State Operation ()
-consumes t = modify $ \op ->
-    op { Api.consumes = maybe (Just [t]) (Just . (t:)) (Api.consumes op) }
-
-deprecated :: State Operation ()
-deprecated = modify $ \op -> op { Api.deprecated = Just True }
+deprecated :: OperationBuilder
+deprecated = modify $ \c -> c { other = (other c) { Api.deprecated = Just True } }
 
 -----------------------------------------------------------------------------
 -- Response
@@ -184,38 +234,41 @@ responseModel m = modify $ \r -> r { Api.responseModel = Just (modelId m) }
 -----------------------------------------------------------------------------
 -- Parameter
 
-multiple :: State ParameterSt ()
+multiple :: ParameterBuilder
 multiple = modify $ \c -> c { other = (other c) { allowMultiple = Just True } }
 
 -----------------------------------------------------------------------------
 -- Model
 
-type ModelSt    = Common '["description"] Model
-type PropertySt = Common '["description", "required"] Property
+type ModelSt = Common '["description"] Model
+type ModelBuilder = State ModelSt ()
 
-defineModel :: ModelId -> State ModelSt () -> Model
+type PropertySt = Common '["description", "required"] Property
+type PropertyBuilder = State PropertySt ()
+
+defineModel :: ModelId -> ModelBuilder -> Model
 defineModel m s = value (execState s start)
   where
     start   = common $ Model m [] Nothing Nothing Nothing Nothing
     value c = (other c) { modelDescription = descr c }
 
-property :: PropertyName -> DataType -> State PropertySt () -> State ModelSt ()
+property :: PropertyName -> DataType -> PropertyBuilder -> ModelBuilder
 property n t s = modify $ \c -> do
     let r = execState s $ common (Property t Nothing)
-        p = other r
+        p = (other r) { propDescription = descr r }
         m = other c
         x = maybe (Just [n]) (Just . (n:)) (requiredProps m)
         y = if Just True /= reqrd r then requiredProps m else x
     c { other = m { properties = (n, p) : properties m , requiredProps = y } }
 
-subtypes :: [ModelId] -> State ModelSt ()
+subtypes :: [ModelId] -> ModelBuilder
 subtypes tt = modify $ \c -> c { other = (other c) { subTypes = Just tt } }
 
-discriminator :: PropertyName -> State ModelSt ()
+discriminator :: PropertyName -> ModelBuilder
 discriminator n = modify $ \c -> c { other = (other c) { Api.discriminator = Just n } }
 
 -----------------------------------------------------------------------------
 -- Helpers
 
-done :: Monad m => m ()
-done = return ()
+end :: Monad m => m ()
+end = return ()
