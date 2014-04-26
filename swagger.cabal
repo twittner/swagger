@@ -28,6 +28,7 @@ library
         Data.Swagger
         Data.Swagger.Build
         Data.Swagger.Build.Api
+        Data.Swagger.Build.Authorisation
         Data.Swagger.Model.Api
         Data.Swagger.Model.Authorisation
         Data.Swagger.Model.Resource

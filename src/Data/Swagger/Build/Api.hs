@@ -10,12 +10,17 @@
 
 module Data.Swagger.Build.Api where
 
+import Control.Applicative ((<$>))
 import Control.Monad.Trans.State.Strict
+import Data.Function (on)
 import Data.Int
+import Data.List (groupBy)
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import Data.Swagger.Build.Util
 import Data.Swagger.Model.Api as Api
+import Data.Swagger.Model.Authorisation (Scope)
 
 -----------------------------------------------------------------------------
 -- Primitive types
@@ -112,11 +117,13 @@ data Common f a = Common
     , reqrd :: Maybe Bool
     , prod  :: Maybe [Text]
     , cons  :: Maybe [Text]
+    , modls :: Maybe [Model]
+    , auths :: Maybe [(Text, Maybe Scope)]
     , other :: a
     }
 
 common :: a -> Common f a
-common = Common Nothing (Just True) Nothing Nothing
+common = Common Nothing (Just True) Nothing Nothing Nothing Nothing
 
 description :: Elem "description" f => Text -> State (Common f a) ()
 description d = modify $ \c -> c { descr = Just d }
@@ -130,29 +137,45 @@ produces t = modify $ \c -> c { prod = maybe (Just [t]) (Just . (t:)) (prod c) }
 consumes :: Elem "consumes" f => Text -> State (Common f a) ()
 consumes t = modify $ \c -> c { cons = maybe (Just [t]) (Just . (t:)) (cons c) }
 
+model :: Elem "models" f => Model -> State (Common f a) ()
+model m = modify $ \c -> c { modls = maybe (Just [m]) (Just . (m:)) (modls c) }
+
+data Auth = Basic | ApiKey | OAuth2 Scope | None
+
+authorisation :: Elem "authorisations" f => Auth -> State (Common f a) ()
+authorisation a = modify $ \c ->
+    c { auths = maybe (Just (f a)) (Just . (f a ++)) (auths c) }
+  where
+    f Basic      = [("basic", Nothing)]
+    f ApiKey     = [("apiKey", Nothing)]
+    f (OAuth2 s) = [("oauth2", Just s)]
+    f None       = []
+
+toAuthObj :: [(Text, Maybe Scope)] -> [(Text, [Scope])]
+toAuthObj = map (\g -> (fst (head g), catMaybes $ map snd g)) . groupBy ((==) `on` fst)
+
 -----------------------------------------------------------------------------
 -- Api Decl
 
-type ApiDeclSt = Common '["produces", "consumes"] ApiDecl
+type ApiDeclSt = Common '["produces", "consumes", "models", "authorisations"] ApiDecl
 type ApiDeclBuilder = State ApiDeclSt ()
 
 declare :: Text -> Text -> ApiDeclBuilder -> ApiDecl
 declare b v s = value $ execState s start
   where
     start   = common $ ApiDecl v b [] Nothing Nothing Nothing Nothing Nothing Nothing
-    value c = (other c) { apiProduces = prod c, apiConsumes = cons c }
+    mmmm  c = map (\m -> (modelId m, m)) <$> modls c
+    value c = (other c) { apiProduces       = prod c
+                        , apiConsumes       = cons c
+                        , models            = mmmm c
+                        , apiAuthorisations = toAuthObj <$> auths c
+                        }
 
 apiVersion :: Text -> ApiDeclBuilder
 apiVersion v = modify $ \c -> c { other = (other c) { Api.apiVersion = Just v } }
 
 resourcePath :: Text -> ApiDeclBuilder
 resourcePath p = modify $ \c -> c { other = (other c) { Api.resourcePath = Just p } }
-
-model :: Model -> ApiDeclBuilder
-model m = modify $ \c -> do
-    let x = other c
-        i = modelId m
-    c { other = x { models = maybe (Just [(i, m)]) (Just . ((i, m) :)) (models x) } }
 
 -----------------------------------------------------------------------------
 -- API
@@ -168,7 +191,7 @@ api p s = modify $ \c -> do
     start   = common $ API p [] Nothing
     value c = (other c) { apiDescription = descr c }
 
-type OperationSt = Common '["produces", "consumes"] Operation
+type OperationSt = Common '["produces", "consumes", "authorisations"] Operation
 type OperationBuilder = State OperationSt ()
 
 operation :: Text -> Text -> OperationBuilder -> ApiBuilder
@@ -178,7 +201,10 @@ operation m n s = modify $ \c -> do
     c { other = a { operations = o : operations a } }
   where
     start   = common $ Operation m n (Left ()) [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-    value c = (other c) { Api.produces = prod c, Api.consumes = cons c }
+    value c = (other c) { Api.produces   = prod c
+                        , Api.consumes   = cons c
+                        , authorisations = toAuthObj <$> auths c
+                        }
 
 -----------------------------------------------------------------------------
 -- Operation
@@ -208,28 +234,29 @@ file n s = modify $ \c -> do
     start   = common $ Parameter Form (Left File) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
+body :: DataType -> ParameterBuilder -> OperationBuilder
+body = parameter Body "body"
+
 summary :: Text -> OperationBuilder
 summary t = modify $ \c -> c { other = (other c) { Api.summary = Just t } }
 
 notes :: Text -> OperationBuilder
 notes t = modify $ \c -> c { other = (other c) { Api.notes = Just t } }
 
-response :: Int -> Text -> State Response () -> OperationBuilder
-response c m s = modify $ \x -> do
-    let r = execState s start
+type ResponseSt = Common '["models"] Response
+type ResponseBuilder = State ResponseSt ()
+
+response :: Int -> Text -> ResponseBuilder -> OperationBuilder
+response i m s = modify $ \x -> do
+    let r = value $ execState s start
         o = other x
     x { other = o { responses = maybe (Just [r]) (Just . (r:)) (responses o) } }
   where
-    start = Response c m Nothing
+    start   = common $ Response i m Nothing
+    value c = (other c) { responseModel = modelId . head <$> modls c }
 
 deprecated :: OperationBuilder
 deprecated = modify $ \c -> c { other = (other c) { Api.deprecated = Just True } }
-
------------------------------------------------------------------------------
--- Response
-
-responseModel :: Model -> State Response ()
-responseModel m = modify $ \r -> r { Api.responseModel = Just (modelId m) }
 
 -----------------------------------------------------------------------------
 -- Parameter
@@ -261,11 +288,8 @@ property n t s = modify $ \c -> do
         y = if Just True /= reqrd r then requiredProps m else x
     c { other = m { properties = (n, p) : properties m , requiredProps = y } }
 
-subtypes :: [ModelId] -> ModelBuilder
-subtypes tt = modify $ \c -> c { other = (other c) { subTypes = Just tt } }
-
-discriminator :: PropertyName -> ModelBuilder
-discriminator n = modify $ \c -> c { other = (other c) { Api.discriminator = Just n } }
+children :: PropertyName -> [Model] -> ModelBuilder
+children d tt = modify $ \c -> c { other = (other c) { subTypes = Just tt, discriminator = Just d } }
 
 -----------------------------------------------------------------------------
 -- Helpers

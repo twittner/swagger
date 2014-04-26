@@ -55,13 +55,12 @@ module Data.Swagger.Build
     , B.returns
     , B.parameter
     , B.file
+    , B.body
     , B.summary
     , B.notes
     , B.response
     , B.produces
-
-      -- * response
-    , B.responseModel
+    , B.authorisation
 
       -- * parameter
     , B.multiple
@@ -70,8 +69,7 @@ module Data.Swagger.Build
       -- * model
     , B.defineModel
     , B.property
-    , B.subtypes
-    , B.discriminator
+    , B.children
 
       -- * general
     , B.description
@@ -79,7 +77,17 @@ module Data.Swagger.Build
     , B.consumes
     , B.deprecated
     , B.end
+
+      -- * authorisation
+    , B.Auth (..)
+    , A.basic
+    , A.apiKey
+    , L.Authorisation
+    , L.PassMethod (..)
     ) where
 
 import qualified Data.Swagger.Build.Api as B
 import qualified Data.Swagger.Model.Api as M
+
+import qualified Data.Swagger.Build.Authorisation as A
+import qualified Data.Swagger.Model.Authorisation as L

@@ -13,7 +13,7 @@ module Data.Swagger.Model.Api where
 import Control.Applicative
 import Data.Aeson hiding (Array)
 import Data.Aeson.Types (Pair)
-import Data.Swagger.Model.Authorisation (Authorisation)
+import Data.Swagger.Model.Authorisation (Scope)
 import Data.Swagger.Model.Util
 import Data.Text (Text)
 
@@ -28,7 +28,7 @@ data ApiDecl = ApiDecl
     , models            :: Maybe [(Text, Model)]
     , apiProduces       :: Maybe [Text]
     , apiConsumes       :: Maybe [Text]
-    , apiAuthorisations :: Maybe [(Text, Authorisation)]
+    , apiAuthorisations :: Maybe [(Text, [Scope])]
     } deriving Show
 
 data API = API
@@ -44,7 +44,7 @@ data Operation = Operation
     , parameters     :: [Parameter]
     , summary        :: Maybe Text
     , notes          :: Maybe Text
-    , authorisations :: Maybe [(Text, Authorisation)]
+    , authorisations :: Maybe [(Text, [Scope])]
     , responses      :: Maybe [Response]
     , produces       :: Maybe [Text]
     , consumes       :: Maybe [Text]
@@ -82,7 +82,7 @@ data Model = Model
     , properties       :: [(PropertyName, Property)]
     , modelDescription :: Maybe Text
     , requiredProps    :: Maybe [PropertyName]
-    , subTypes         :: Maybe [ModelId]
+    , subTypes         :: Maybe [Model]
     , discriminator    :: Maybe PropertyName
     } deriving Show
 
@@ -138,7 +138,7 @@ instance ToJSON ApiDecl where
         # "models"         .= (fromPairs <$> models a)
         # "produces"       .= apiProduces a
         # "consumes"       .= apiConsumes a
-        # "authorizations" .= (fromPairs <$> apiAuthorisations a)
+        # "authorizations" .= (fromAuth <$> apiAuthorisations a)
         # []
 
 instance ToJSON API where
@@ -154,7 +154,7 @@ instance ToJSON Operation where
         # "summary"          .= summary a
         # "notes"            .= notes a
         # "nickname"         .= nickname a
-        # "authorizations"   .= authorisations a
+        # "authorizations"   .= (fromAuth <$> authorisations a)
         # "parameters"       .= parameters a
         # "responseMessages" .= responses a
         # "produces"         .= produces a
@@ -191,7 +191,7 @@ instance ToJSON Model where
         # "description"   .= modelDescription a
         # "required"      .= requiredProps a
         # "properties"    .= fromPairs (properties a)
-        # "subTypes"      .= subTypes a
+        # "subTypes"      .= (map modelId <$> subTypes a)
         # "discriminator" .= discriminator a
         # []
 
@@ -235,3 +235,7 @@ fromPrimType PrimDateTime = ["type" .= "string", "format" .= "date-time" ]
 fromItems :: ToJSON a => Items a -> [Pair]
 fromItems (ModelItems i) = [ "$ref" .= i ]
 fromItems (PrimItems  p) = fromPrim p
+
+fromAuth :: [(Text, [Scope])] -> Value
+fromAuth = fromPairs . map (\x -> (fst x, map toJSON (snd x)))
+

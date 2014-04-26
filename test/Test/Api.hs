@@ -47,7 +47,7 @@ apiDecl = declare "http://petstore.swagger.wordnik.com/api" "1.2" $ do
                 description "amount of foo"
             produces "application/json"
             produces "text/html"
-            response 200 "OK" (responseModel foo)
+            response 200 "OK" (model foo)
             response 400 "Bad Request" end
         operation "POST" "foo" $ do
             summary "something else"
