@@ -37,8 +37,8 @@ data Scope = Scope
     } deriving Show
 
 data GrantTypes = GrantTypes
-    { implicit :: ImplicitGrant
-    , authCode :: AuthCode
+    { implicit :: Maybe ImplicitGrant
+    , authCode :: Maybe AuthCode
     } deriving Show
 
 data ImplicitGrant = ImplicitGrant
@@ -46,13 +46,13 @@ data ImplicitGrant = ImplicitGrant
     , tokenName     :: Maybe Text
     } deriving Show
 
+newtype LoginEndpoint = LoginEndpoint
+    { loginUrl :: Text
+    } deriving Show
+
 data AuthCode = AuthCode
     { tokenRequestEndpoint :: TokenRequestEndpoint
     , tokenEndpoint        :: TokenEndpoint
-    } deriving Show
-
-data LoginEndpoint = LoginEndpoint
-    { loginUrl :: Text
     } deriving Show
 
 data TokenRequestEndpoint = TokenRequestEndpoint

@@ -30,7 +30,7 @@ data Resource = Resource
 
 data Info = Info
     { title             :: Text
-    , infoDescription   :: Text
+    , infoDescription   :: Maybe Text
     , termsOfServiceUrl :: Maybe Text
     , contact           :: Maybe Text
     , license           :: Maybe Text

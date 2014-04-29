@@ -4,11 +4,11 @@ synopsis:             Implementation of swagger data model
 author:               Toralf Wittner
 maintainer:           Toralf Wittner <tw@dtex.org>
 copyright:            (c) 2014 Toralf Wittner
-license:              MPL-2.0
+license:              OtherLicense
 license-file:         LICENSE
 category:             Data
 build-type:           Simple
-cabal-version:        >= 1.20
+cabal-version:        >= 1.10
 
 description:
     Implementation of Swagger Specification version 1.2 as defined in
@@ -25,10 +25,9 @@ library
     ghc-prof-options: -prof -auto-all
 
     exposed-modules:
-        Data.Swagger
-        Data.Swagger.Build
         Data.Swagger.Build.Api
         Data.Swagger.Build.Authorisation
+        Data.Swagger.Build.Resource
         Data.Swagger.Model.Api
         Data.Swagger.Model.Authorisation
         Data.Swagger.Model.Resource
@@ -38,10 +37,10 @@ library
         Data.Swagger.Model.Util
 
     build-depends:
-          aeson        >= 0.6  && < 0.8
+          aeson        >= 0.6    && < 0.8
         , base         == 4.*
         , bytestring   == 0.10.*
-        , text         >= 0.11 && < 1.2
+        , text         >= 0.11   && < 1.2
         , time         == 1.4.*
         , transformers == 0.3.*
 

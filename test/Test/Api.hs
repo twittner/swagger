@@ -7,8 +7,7 @@
 module Test.Api where
 
 import Data.Aeson
-import Data.Swagger.Build
-import Data.Swagger.Model.Api (Model, ApiDecl)
+import Data.Swagger.Build.Api
 import Prelude hiding (min, max)
 import Test.Tasty
 import Test.Tasty.HUnit

@@ -8,7 +8,23 @@
 {-# LANGUAGE    StandaloneDeriving      #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-module Data.Swagger.Model.Api where
+module Data.Swagger.Model.Api
+    ( ApiDecl      (..)
+    , API          (..)
+    , Operation    (..)
+    , Parameter    (..)
+    , ParamType    (..)
+    , Response     (..)
+    , Model        (..)
+    , Property     (..)
+    , DataType     (..)
+    , Primitive    (..)
+    , Items        (..)
+    , PrimType     (..)
+    , File         (..)
+    , ModelId
+    , PropertyName
+    ) where
 
 import Control.Applicative
 import Data.Aeson hiding (Array)

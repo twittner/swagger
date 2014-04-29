@@ -8,7 +8,96 @@
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
 
-module Data.Swagger.Build.Api where
+module Data.Swagger.Build.Api
+    ( -- * data types
+      -- ** Re-exports
+      Api.ApiDecl
+    , Api.API
+    , Api.Operation
+    , Api.Parameter
+    , Api.ParamType (..)
+    , Api.Response
+    , Api.Model
+    , Api.Property
+    , Api.DataType
+    , Api.Primitive
+    , Api.Items
+
+      -- ** primitive construction
+    , int32
+    , int32'
+    , int64
+    , int64'
+    , float
+    , float'
+    , bool
+    , bool'
+    , double
+    , double'
+    , string
+    , string'
+    , bytes
+    , bytes'
+    , date
+    , date'
+    , dateTime
+    , dateTime'
+
+      -- ** primitive modifiers
+    , Data.Swagger.Build.Api.def
+    , Data.Swagger.Build.Api.enum
+    , Data.Swagger.Build.Api.min
+    , Data.Swagger.Build.Api.max
+
+      -- ** data-type constructors
+    , ref
+    , array
+    , unique
+
+      -- * builder types
+    , ApiDeclBuilder
+    , ApiBuilder
+    , OperationBuilder
+    , ParameterBuilder
+    , ResponseBuilder
+    , ModelBuilder
+    , PropertyBuilder
+
+      -- * API declaration
+    , declare
+    , Data.Swagger.Build.Api.apiVersion
+    , Data.Swagger.Build.Api.resourcePath
+    , api
+    , model
+
+      -- * operation
+    , operation
+    , returns
+    , parameter
+    , file
+    , body
+    , Data.Swagger.Build.Api.summary
+    , Data.Swagger.Build.Api.notes
+    , response
+    , Data.Swagger.Build.Util.produces
+    , authorisation
+    , Data.Swagger.Build.Util.Auth (..)
+
+      -- * parameter
+    , multiple
+
+      -- * model
+    , defineModel
+    , property
+    , children
+
+      -- * various
+    , Data.Swagger.Build.Util.description
+    , optional
+    , Data.Swagger.Build.Util.consumes
+    , Data.Swagger.Build.Api.deprecated
+    , Data.Swagger.Build.Util.end
+    ) where
 
 import Control.Applicative ((<$>))
 import Control.Monad.Trans.State.Strict
@@ -108,51 +197,6 @@ array t@(Array _ _) = t
 unique :: DataType -> DataType
 unique (Array t _) = Array t (Just True)
 unique t           = t
-
------------------------------------------------------------------------------
--- Fields occuring in multiple locations
-
-data Common f a = Common
-    { descr :: Maybe Text
-    , reqrd :: Maybe Bool
-    , prod  :: Maybe [Text]
-    , cons  :: Maybe [Text]
-    , modls :: Maybe [Model]
-    , auths :: Maybe [(Text, Maybe Scope)]
-    , other :: a
-    }
-
-common :: a -> Common f a
-common = Common Nothing (Just True) Nothing Nothing Nothing Nothing
-
-description :: Elem "description" f => Text -> State (Common f a) ()
-description d = modify $ \c -> c { descr = Just d }
-
-optional :: Elem "required" f => State (Common f a) ()
-optional = modify $ \c -> c { reqrd = Nothing }
-
-produces :: Elem "produces" f => Text -> State (Common f a) ()
-produces t = modify $ \c -> c { prod = maybe (Just [t]) (Just . (t:)) (prod c) }
-
-consumes :: Elem "consumes" f => Text -> State (Common f a) ()
-consumes t = modify $ \c -> c { cons = maybe (Just [t]) (Just . (t:)) (cons c) }
-
-model :: Elem "models" f => Model -> State (Common f a) ()
-model m = modify $ \c -> c { modls = maybe (Just [m]) (Just . (m:)) (modls c) }
-
-data Auth = Basic | ApiKey | OAuth2 Scope | None
-
-authorisation :: Elem "authorisations" f => Auth -> State (Common f a) ()
-authorisation a = modify $ \c ->
-    c { auths = maybe (Just (f a)) (Just . (f a ++)) (auths c) }
-  where
-    f Basic      = [("basic", Nothing)]
-    f ApiKey     = [("apiKey", Nothing)]
-    f (OAuth2 s) = [("oauth2", Just s)]
-    f None       = []
-
-toAuthObj :: [(Text, Maybe Scope)] -> [(Text, [Scope])]
-toAuthObj = map (\g -> (fst (head g), catMaybes $ map snd g)) . groupBy ((==) `on` fst)
 
 -----------------------------------------------------------------------------
 -- Api Decl
@@ -294,5 +338,6 @@ children d tt = modify $ \c -> c { other = (other c) { subTypes = Just tt, discr
 -----------------------------------------------------------------------------
 -- Helpers
 
-end :: Monad m => m ()
-end = return ()
+toAuthObj :: [(Text, Maybe Scope)] -> [(Text, [Scope])]
+toAuthObj = map (\g -> (fst (head g), catMaybes $ map snd g)) . groupBy ((==) `on` fst)
+
