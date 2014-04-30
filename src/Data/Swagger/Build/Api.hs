@@ -8,6 +8,37 @@
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
 
+-- | Construction of "Data.Swagger.Model.Api" values. For example:
+--
+-- @
+-- declare "http://petstore.swagger.wordnik.com/api" "1.2" $ do
+--    apiVersion \"1.0.0\"
+--    resourcePath \"/store\"
+--    model foo
+--    model bar
+--    produces \"application/json\"
+--    produces \"text/html\"
+--    produces \"text/plain\"
+--    api \"\/store\/order\/{orderId}\" $ do
+--        operation \"GET\" \"foo\" $ do
+--            summary \"give me some foo\"
+--            notes   \"but only the good one\"
+--            returns (ref foo)
+--            parameter Header \"type\" (string $ enum [\"bar\", \"baz\"]) $ do
+--                description \"specifies the type of foo\"
+--                optional
+--            parameter Query \"format\" (string $ enum [\"plain\", \"html\"]) $
+--                description \"output format\"
+--            parameter Query \"size\" (int32 $ min 1 . max 100 . def 10) $
+--                description \"amount of foo\"
+--            produces \"application/json\"
+--            produces \"text/html\"
+--            response 200 \"OK\" (model foo)
+--            response 400 \"Bad Request\" end
+--        operation \"POST\" \"foo\" $ do
+--            summary \"something else\"
+--            deprecated
+-- @
 module Data.Swagger.Build.Api
     ( -- * data types
       -- ** Re-exports
@@ -55,12 +86,19 @@ module Data.Swagger.Build.Api
     , unique
 
       -- * builder types
+    , ApiDeclSt
     , ApiDeclBuilder
+    , ApiSt
     , ApiBuilder
+    , OperationSt
     , OperationBuilder
+    , ParameterSt
     , ParameterBuilder
+    , ResponseSt
     , ResponseBuilder
+    , ModelSt
     , ModelBuilder
+    , PropertySt
     , PropertyBuilder
 
       -- * API declaration
@@ -171,15 +209,19 @@ date' = date id
 dateTime' :: DataType
 dateTime' = dateTime id
 
+-- | Default value of some primitive type.
 def :: a -> Primitive a -> Primitive a
 def a t = t { defaultValue = Just a }
 
+-- | Enumerate valid values of some primitive type.
 enum :: [a] -> Primitive a -> Primitive a
 enum a t = t { Api.enum = Just a }
 
+-- | Minimum value of some primitive type.
 min :: a -> Primitive a -> Primitive a
 min a t = t { minVal = Just a }
 
+-- | Maximum value of some primitive type.
 max :: a -> Primitive a -> Primitive a
 max a t = t { maxVal = Just a }
 
@@ -194,6 +236,7 @@ array (Prim  t) = Array (PrimItems t) Nothing
 array (Ref   t) = Array (ModelItems t :: Items ()) Nothing
 array t@(Array _ _) = t
 
+-- | Specify that array elements are unique.
 unique :: DataType -> DataType
 unique (Array t _) = Array t (Just True)
 unique t           = t
@@ -204,6 +247,8 @@ unique t           = t
 type ApiDeclSt = Common '["produces", "consumes", "models", "authorisations"] ApiDecl
 type ApiDeclBuilder = State ApiDeclSt ()
 
+-- | Create an API declaration given a base URL, a swagger version, and
+-- other API declaration values.
 declare :: Text -> Text -> ApiDeclBuilder -> ApiDecl
 declare b v s = value $ execState s start
   where
@@ -227,6 +272,8 @@ resourcePath p = modify $ \c -> c { other = (other c) { Api.resourcePath = Just 
 type ApiSt = Common '["description"] API
 type ApiBuilder = State ApiSt ()
 
+-- | Add one API object to an API declaration given some path and other API
+-- object values.
 api :: Text -> ApiBuilder -> ApiDeclBuilder
 api p s = modify $ \c -> do
     let d = other c
@@ -238,6 +285,8 @@ api p s = modify $ \c -> do
 type OperationSt = Common '["produces", "consumes", "authorisations"] Operation
 type OperationBuilder = State OperationSt ()
 
+-- | Add one operation object to an API object given an HTTP method,
+-- a nickname and other operation specific values.
 operation :: Text -> Text -> OperationBuilder -> ApiBuilder
 operation m n s = modify $ \c -> do
     let o = value (execState s start)
@@ -259,6 +308,9 @@ type ParameterBuilder = State ParameterSt ()
 returns :: DataType -> OperationBuilder
 returns t = modify $ \c -> c { other = (other c) { returnType = Right t } }
 
+-- | Add one parameter object to an operation object given the 'ParamType',
+-- the parameter name and the actual data-type plus some other parameter
+-- values.
 parameter :: ParamType -> Text -> DataType -> ParameterBuilder -> OperationBuilder
 parameter p n t s = modify $ \c -> do
     let op = other c
@@ -267,6 +319,7 @@ parameter p n t s = modify $ \c -> do
     start   = common $ Parameter p (Right t) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
+-- | Like 'parameter' but specific for file uploads.
 file :: Text -> ParameterBuilder -> OperationBuilder
 file n s = modify $ \c -> do
     let op = other c
@@ -278,6 +331,9 @@ file n s = modify $ \c -> do
     start   = common $ Parameter Form (Left File) n Nothing Nothing Nothing
     value c = (other c) { Api.description = descr c, Api.required = reqrd c }
 
+-- | Like 'parameter' but specific for request body parameters. Sets
+-- 'ParamType' to 'Body' and uses as name \"body\" which is the only valid
+-- name for request bodies.
 body :: DataType -> ParameterBuilder -> OperationBuilder
 body = parameter Body "body"
 
@@ -290,6 +346,8 @@ notes t = modify $ \c -> c { other = (other c) { Api.notes = Just t } }
 type ResponseSt = Common '["models"] Response
 type ResponseBuilder = State ResponseSt ()
 
+-- | Add one response message object to an operation given a status code
+-- and some message plus response message specific values.
 response :: Int -> Text -> ResponseBuilder -> OperationBuilder
 response i m s = modify $ \x -> do
     let r = value $ execState s start
@@ -317,12 +375,16 @@ type ModelBuilder = State ModelSt ()
 type PropertySt = Common '["description", "required"] Property
 type PropertyBuilder = State PropertySt ()
 
+-- | Construct a complex data-type (aka \"Model\") given some identifier
+-- and model-specific values.
 defineModel :: ModelId -> ModelBuilder -> Model
 defineModel m s = value (execState s start)
   where
     start   = common $ Model m [] Nothing Nothing Nothing Nothing
     value c = (other c) { modelDescription = descr c }
 
+-- | Add a property to a model given a name, type and other propertu
+-- values.
 property :: PropertyName -> DataType -> PropertyBuilder -> ModelBuilder
 property n t s = modify $ \c -> do
     let r = execState s $ common (Property t Nothing)
@@ -332,6 +394,8 @@ property n t s = modify $ \c -> do
         y = if Just True /= reqrd r then requiredProps m else x
     c { other = m { properties = (n, p) : properties m , requiredProps = y } }
 
+-- | Specify a sub-typing relationship for a model by given
+-- a \"discriminator\" property name and all sub-types.
 children :: PropertyName -> [Model] -> ModelBuilder
 children d tt = modify $ \c -> c { other = (other c) { subTypes = Just tt, discriminator = Just d } }
 

@@ -9,6 +9,7 @@
 module Data.Swagger.Build.Authorisation
     ( -- * builder types
       OAuth2Builder
+    , ScopeSt
     , ScopeBuilder
     , ImplicitBuilder
     , TokenEndpointBuilder
@@ -59,6 +60,7 @@ oauth2 t s =
 type ScopeSt = Common '["description"] Scope
 type ScopeBuilder = State ScopeSt ()
 
+-- | Add one scope with the given name to an OAuth2 object.
 scope :: Text -> ScopeBuilder -> OAuth2Builder
 scope t s = modify $ \o -> value (execState s start) : o
   where
@@ -67,12 +69,15 @@ scope t s = modify $ \o -> value (execState s start) : o
 
 type ImplicitBuilder = State (TokenName ImplicitGrant) ()
 
+-- | Construct an implicit grant type with the given login endpoint and
+-- some optional token name.
 implicit :: Text -> ImplicitBuilder -> GrantTypes
 implicit e s = GrantTypes (Just $ value $ execState s start) Nothing
   where
     start   = mkTokenName $ ImplicitGrant (LoginEndpoint e) Nothing
     value t = (unwrap t) { Auth.tokenName = tname t }
 
+-- | Construct an authentorisation code based grant type object.
 authCode :: TokenRequestEndpoint -> TokenEndpoint -> GrantTypes
 authCode r e = GrantTypes Nothing (Just $ AuthCode r e)
 

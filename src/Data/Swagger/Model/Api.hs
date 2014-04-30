@@ -8,6 +8,9 @@
 {-# LANGUAGE    StandaloneDeriving      #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
+-- | The <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#52-api-declaration API Declaration>
+-- part of the swagger specification. For construction please consider
+-- using "Data.Swagger.Build.Api".
 module Data.Swagger.Model.Api
     ( ApiDecl      (..)
     , API          (..)
@@ -35,6 +38,7 @@ import Data.Text (Text)
 
 default (Text)
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#52-api-declaration API Declaration>
 data ApiDecl = ApiDecl
     { swaggerVersion    :: Text
     , basePath          :: Text
@@ -47,12 +51,14 @@ data ApiDecl = ApiDecl
     , apiAuthorisations :: Maybe [(Text, [Scope])]
     } deriving Show
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#522-api-object API Object>
 data API = API
     { path           :: Text
     , operations     :: [Operation]
     , apiDescription :: Maybe Text
     } deriving Show
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#523-operation-object Operation Object>
 data Operation = Operation
     { method         :: Text
     , nickname       :: Text
@@ -67,6 +73,7 @@ data Operation = Operation
     , deprecated     :: Maybe Bool
     } deriving Show
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#524-parameter-object Parameter Object>
 data Parameter = Parameter
     { paramType     :: ParamType
     , inputType     :: Either File DataType
@@ -84,6 +91,7 @@ data ParamType
     | Form
     deriving (Eq, Show)
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#525-response-message-object Response Message Object>
 data Response = Response
     { code          :: Int
     , message       :: Text
@@ -93,6 +101,7 @@ data Response = Response
 type ModelId      = Text
 type PropertyName = Text
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#527-model-object Model Object>
 data Model = Model
     { modelId          :: ModelId
     , properties       :: [(PropertyName, Property)]
@@ -102,6 +111,7 @@ data Model = Model
     , discriminator    :: Maybe PropertyName
     } deriving Show
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#529-property-object Property Object>
 data Property = Property
     { propertyType    :: DataType
     , propDescription :: Maybe Text
@@ -114,6 +124,7 @@ data DataType where
 
 deriving instance Show DataType
 
+-- | Cf. <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md#431-primitives Primitive Types>
 data Primitive a = Primitive
     { primType     :: PrimType
     , defaultValue :: Maybe a

@@ -25,9 +25,16 @@ type family IsElem a b where
     IsElem a '[] = False
     IsElem a (h ': t) = a == h || IsElem a t
 
------------------------------------------------------------------------------
--- Fields occuring in multiple locations
-
+-- | Common contains recurring fields to allow reuse of names.
+-- The first type variable is used to constrain the valid fields, e.g.
+--
+-- @
+-- type Foo = Common '["description", "models"] Bar
+-- @
+--
+-- The various state monad updates check if their field is part of the
+-- type-level list, cf. for example 'description'.
+--
 data Common f a = Common
     { descr :: Maybe Text
     , reqrd :: Maybe Bool
@@ -67,6 +74,8 @@ authorisation a = modify $ \c ->
     f (OAuth2 s) = [("oauth2", Just s)]
     f None       = []
 
+-- | If cases where no build steps are provided but an builder is required
+-- 'end' can be used, e.g. @defineModel \"Foo\" end@
 end :: Monad m => m ()
 end = return ()
 

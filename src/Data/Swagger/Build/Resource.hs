@@ -29,6 +29,8 @@ import Data.Swagger.Model.Resource as R
 
 type ResourcesBuilder = State Resources ()
 
+-- | Construct a resource listing object given a swagger version and some
+-- resource objects.
 resources :: Text -> ResourcesBuilder -> Resources
 resources v s = execState s start
   where
@@ -37,6 +39,8 @@ resources v s = execState s start
 type ResourceSt = Common '["description"] Resource
 type ResourceBuilder = State ResourceSt ()
 
+-- | Add one resource object to a resource listing given a path and some
+-- resource specific values.
 api :: Text -> ResourceBuilder -> ResourcesBuilder
 api p s = modify $ \r ->
     r { apis = value (execState s start) : apis r }
@@ -50,6 +54,8 @@ apiVersion v = modify $ \r -> r { R.apiVersion = Just v }
 type InfoSt = Common '["description"] Info
 type InfoBuilder = State InfoSt ()
 
+-- | Set the info object of a resource listing object given a title and
+-- other infor object specific values.
 info :: Text -> InfoBuilder -> ResourcesBuilder
 info t s = modify $ \r ->
     r { R.info = Just $ value (execState s start) }
@@ -69,6 +75,7 @@ license u = modify $ \c -> c { other = (other c) { R.license = Just u } }
 licenseUrl :: Text -> InfoBuilder
 licenseUrl u = modify $ \c -> c { other = (other c) { R.licenseUrl = Just u } }
 
+-- | Add a authorisation object to a resource listing with the given name.
 authorisation :: Text -> Authorisation -> ResourcesBuilder
 authorisation n a = modify $ \r -> let x = (n, a) in
     r { authorisations = maybe (Just [x]) (Just . (x:)) (authorisations r) }
