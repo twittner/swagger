@@ -74,7 +74,7 @@ authorisation a = modify $ \c ->
     f (OAuth2 s) = [("oauth2", Just s)]
     f None       = []
 
--- | If cases where no build steps are provided but an builder is required
+-- | If cases where no build steps are provided but a builder is required
 -- 'end' can be used, e.g. @defineModel \"Foo\" end@
 end :: Monad m => m ()
 end = return ()

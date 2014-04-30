@@ -7,20 +7,12 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Data.Swagger.Build.Authorisation
-    ( -- * builder types
-      OAuth2Builder
-    , ScopeSt
-    , ScopeBuilder
-    , ImplicitBuilder
-    , TokenEndpointBuilder
-    , TokenReqEndpointBuilder
-    , PassMethod (..)
-
-      -- * basic auth
-    , Data.Swagger.Build.Authorisation.basic
+    ( -- * basic auth
+      Data.Swagger.Build.Authorisation.basic
 
       -- * api key
     , Data.Swagger.Build.Authorisation.apiKey
+    , PassMethod (..)
 
       -- * oauth2
     , Data.Swagger.Build.Authorisation.oauth2
@@ -33,6 +25,15 @@ module Data.Swagger.Build.Authorisation
     , Data.Swagger.Build.Authorisation.clientSecretName
     , Data.Swagger.Build.Authorisation.token
     , Data.Swagger.Build.Util.end
+
+      -- * builder types
+    , OAuth2Builder
+    , ScopeSt
+    , ScopeBuilder
+    , ImplicitBuilder
+    , TokenEndpointBuilder
+    , TokenReqEndpointBuilder
+
     ) where
 
 import Control.Monad.Trans.State.Strict

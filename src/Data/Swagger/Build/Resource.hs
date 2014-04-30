@@ -7,9 +7,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Data.Swagger.Build.Resource
-    ( ResourcesBuilder
-    , InfoBuilder
-    , Data.Swagger.Build.Resource.resources
+    ( Data.Swagger.Build.Resource.resources
     , Data.Swagger.Build.Resource.api
     , Data.Swagger.Build.Resource.apiVersion
     , Data.Swagger.Build.Resource.info
@@ -19,6 +17,10 @@ module Data.Swagger.Build.Resource
     , Data.Swagger.Build.Resource.licenseUrl
     , Data.Swagger.Build.Resource.authorisation
     , Data.Swagger.Build.Util.end
+
+      -- * builder types
+    , ResourcesBuilder
+    , InfoBuilder
     ) where
 
 import Control.Monad.Trans.State.Strict

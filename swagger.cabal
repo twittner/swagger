@@ -11,7 +11,7 @@ build-type:           Simple
 cabal-version:        >= 1.10
 
 description:
-    Implementation of Swagger Specification version 1.2 as defined in
+    Implementation of Swagger specification version 1.2 as defined in
     <https://github.com/wordnik/swagger-spec/blob/master/versions/1.2.md>
 
 source-repository head
