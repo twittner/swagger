@@ -1,5 +1,5 @@
 name:                 swagger
-version:              0.1
+version:              0.2
 synopsis:             Implementation of swagger data model
 author:               Toralf Wittner
 maintainer:           Toralf Wittner <tw@dtex.org>
@@ -37,7 +37,7 @@ library
         Data.Swagger.Model.Util
 
     build-depends:
-          aeson        >= 0.6    && < 0.8
+          aeson        >= 0.6    && < 0.9
         , base         == 4.*
         , bytestring   == 0.10.*
         , text         >= 0.11   && < 1.2
