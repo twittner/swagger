@@ -35,6 +35,7 @@ import Data.Aeson.Types (Pair)
 import Data.Swagger.Model.Authorisation (Scope)
 import Data.Swagger.Model.Util
 import Data.Text (Text)
+import Prelude
 
 default (Text)
 

@@ -137,7 +137,7 @@ module Data.Swagger.Build.Api
     , Data.Swagger.Build.Util.end
     ) where
 
-import Control.Applicative ((<$>))
+import Control.Applicative hiding (optional)
 import Control.Monad.Trans.State.Strict
 import Data.Function (on)
 import Data.Int
@@ -148,6 +148,7 @@ import Data.Time (UTCTime)
 import Data.Swagger.Build.Util
 import Data.Swagger.Model.Api as Api
 import Data.Swagger.Model.Authorisation (Scope)
+import Prelude
 
 -----------------------------------------------------------------------------
 -- Primitive types

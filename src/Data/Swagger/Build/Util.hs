@@ -18,11 +18,12 @@ import Data.Swagger.Model.Authorisation (Scope)
 import Data.Text (Text)
 import Data.Type.Bool
 import Data.Type.Equality
+import Prelude
 
-type Elem a b = IsElem a b ~ True
+type Elem a b = IsElem a b ~ 'True
 
 type family IsElem a b where
-    IsElem a '[] = False
+    IsElem a '[] = 'False
     IsElem a (h ': t) = a == h || IsElem a t
 
 -- | Common contains recurring fields to allow reuse of names.
