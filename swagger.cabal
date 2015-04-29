@@ -1,9 +1,9 @@
 name:                 swagger
-version:              0.2.1
+version:              0.2.2
 synopsis:             Implementation of swagger data model
 author:               Toralf Wittner
 maintainer:           Toralf Wittner <tw@dtex.org>
-copyright:            (c) 2014 Toralf Wittner
+copyright:            (C) 2014-2015 Toralf Wittner
 license:              OtherLicense
 license-file:         LICENSE
 category:             Data
@@ -50,6 +50,7 @@ test-suite tests
     main-is:          Main.hs
     hs-source-dirs:   test
     ghc-options:      -threaded -Wall -O2 -fwarn-tabs
+    other-modules:    Test.Api
 
     build-depends:
           aeson
